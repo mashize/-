@@ -1,0 +1,119 @@
+#include<iostream>
+#include<vector>
+#include<string>
+#include<string.h>
+#include<wchar.h>
+#include<tchar.h>
+#include<stdlib.h>
+#include"sysmets.h"
+#pragma comment(lib,"WINMM.LIB")
+
+#define TWO_PI (2.0*3.14159)
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+//HINSTANCE 实例句柄---程序本身
+int WINAPI WinMain(HINSTANCE hinstance,HINSTANCE hprevInstance,PSTR szCmdLine,int icmdshow)
+{
+	static TCHAR szAppName[] = TEXT("Clover");
+	HWND		hwnd;//窗口句柄
+	MSG			msg;//消息结构
+	WNDCLASS	wndclass;//窗口类结构
+	wndclass.style = CS_HREDRAW | CS_VREDRAW;
+	wndclass.lpfnWndProc = WndProc;
+	wndclass.cbClsExtra = 0;
+	wndclass.cbWndExtra = 0;
+	wndclass.hInstance = hinstance;
+	wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);//加载图标，以供程序使用
+	wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);//加载鼠标光标，以供程序使用
+	wndclass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);//获取一个图形对象。在本例中是一个用来对窗口的背景用来重绘的画刷
+	wndclass.lpszMenuName = NULL;
+	wndclass.lpszClassName = szAppName;
+	if (!RegisterClass(&wndclass)) {//为应用程序的窗口注册一个窗口类
+		//GetLastError();
+		MessageBox(NULL, TEXT("This program requires Windows NT!"), szAppName, MB_ICONERROR);//显示消息框
+		return 0;
+	}
+	//CreateWindow  基于窗口类创建一个窗口
+	hwnd = CreateWindow(szAppName,//窗口类名称
+		TEXT("Draw a Clover"),//窗口标题
+		WS_OVERLAPPEDWINDOW,//窗口风格，或称窗口格式
+		CW_USEDEFAULT,//初始化x坐标
+		CW_USEDEFAULT,//初始化y坐标
+		CW_USEDEFAULT,//初始x方向尺寸
+		CW_USEDEFAULT,//初始y方向尺寸
+		NULL,//父窗口句柄
+		NULL,//窗口菜单句柄
+		hinstance,//程序实例句柄
+		NULL);//创建参数
+	//MessageBox(NULL,TEXT("haha"), TEXT("1234"), 0);
+	ShowWindow(hwnd, icmdshow);//在屏幕中显示窗口
+	UpdateWindow(hwnd);//指示窗口对其自身重绘
+	while (GetMessage(&msg, NULL, 0, 0)) {//从消息队列获取消息
+		TranslateMessage(&msg);//翻译一些键盘消息
+		DispatchMessage(&msg);//将消息发送给窗口过程
+	}
+	return msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	static HRGN		hRgnClip;
+	static int		cxClient, cyClient;
+	double			fAngle, fRadius;
+	HCURSOR			hCursor;
+	HDC				hdc;//设备环境句柄
+	PAINTSTRUCT		ps;//绘制结构
+	int				i;
+	HRGN			hRgnTemp[6];
+	switch (message)
+	{
+	case WM_SIZE:
+		cxClient = LOWORD(lParam);
+		cyClient = HIWORD(lParam);
+
+		hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+		ShowCursor(TRUE);
+
+		if (hRgnClip)
+			DeleteObject(hRgnClip);
+
+		hRgnTemp[0] = CreateEllipticRgn(0, cyClient / 3, cxClient / 2, 2 * cyClient / 3);//绘制椭圆
+		hRgnTemp[1] = CreateEllipticRgn(cxClient/2, cyClient/3, cxClient, 2 * cyClient / 3);
+		hRgnTemp[2] = CreateEllipticRgn(cxClient / 3, 0, 2 * cxClient / 3, cyClient / 2);
+		hRgnTemp[3] = CreateEllipticRgn(cxClient/3, cyClient / 2, 2*cxClient / 3, cyClient);
+		hRgnTemp[4] = CreateRectRgn(0, 0, 1, 1);
+		hRgnTemp[5] = CreateRectRgn(0, 0, 1, 1);
+		
+		hRgnClip = CreateRectRgn(0, 0, 1, 1);
+
+		CombineRgn(hRgnTemp[4], hRgnTemp[0], hRgnTemp[1], RGN_OR);//合并0和1变成4 RGN_OR代表或  RGN_XOR代表抑或
+		CombineRgn(hRgnTemp[5], hRgnTemp[2], hRgnTemp[3], RGN_OR);
+		CombineRgn(hRgnClip, hRgnTemp[4], hRgnTemp[5], RGN_XOR);
+
+		for (i = 0; i < 6; ++i) {
+			DeleteObject(hRgnTemp[i]);
+		}
+		SetCursor(hCursor);
+		ShowCursor(FALSE);
+		return 0;
+	case WM_PAINT:
+		hdc = BeginPaint(hwnd, &ps);
+
+		SetViewportOrgEx(hdc, cxClient / 2, cyClient / 2, NULL);
+		SelectClipRgn(hdc, hRgnClip);//选择hRgnClip为裁剪区域
+
+		fRadius = _hypot(cxClient / 2.0, cyClient / 2.0);//计算直角三角形的斜边
+
+		for (fAngle = 0.0; fAngle < TWO_PI; fAngle += TWO_PI / 360){
+			MoveToEx(hdc, 0, 0, NULL);
+			LineTo(hdc, (int)(fRadius*cos(fAngle) + 0.5), (int)(-fRadius * sin(fAngle) + 0.5));
+		}
+		EndPaint(hwnd, &ps);
+		return 0;
+	case WM_DESTROY:
+		DeleteObject(hRgnClip);
+		PostQuitMessage(0);//将退出消息插入窗口队列
+		return 0;
+	}
+	return DefWindowProc(hwnd, message, wParam, lParam);//执行默认的消息处理
+}
