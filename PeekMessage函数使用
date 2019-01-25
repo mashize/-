@@ -1,0 +1,106 @@
+#include<iostream>
+#include<vector>
+#include<string>
+#include<string.h>
+#include<wchar.h>
+#include<tchar.h>
+#include<stdlib.h>
+#include"sysmets.h"
+#pragma comment(lib,"WINMM.LIB")
+
+void DrawRectangle(HWND);
+
+int cxClient, cyClient;
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+//HINSTANCE 实例句柄---程序本身
+int WINAPI WinMain(HINSTANCE hinstance,HINSTANCE hprevInstance,PSTR szCmdLine,int icmdshow)
+{
+	static TCHAR szAppName[] = TEXT("RandRect");
+	HWND		hwnd;//窗口句柄
+	MSG			msg;//消息结构
+	WNDCLASS	wndclass;//窗口类结构
+	wndclass.style = CS_HREDRAW | CS_VREDRAW;
+	wndclass.lpfnWndProc = WndProc;
+	wndclass.cbClsExtra = 0;
+	wndclass.cbWndExtra = 0;
+	wndclass.hInstance = hinstance;
+	wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);//加载图标，以供程序使用
+	wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);//加载鼠标光标，以供程序使用
+	wndclass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);//获取一个图形对象。在本例中是一个用来对窗口的背景用来重绘的画刷
+	wndclass.lpszMenuName = NULL;
+	wndclass.lpszClassName = szAppName;
+	if (!RegisterClass(&wndclass)) {//为应用程序的窗口注册一个窗口类
+		//GetLastError();
+		MessageBox(NULL, TEXT("This program requires Windows NT!"), szAppName, MB_ICONERROR);//显示消息框
+		return 0;
+	}
+	//CreateWindow  基于窗口类创建一个窗口
+	hwnd = CreateWindow(szAppName,//窗口类名称
+		TEXT("Random Rectangles"),//窗口标题
+		WS_OVERLAPPEDWINDOW,//窗口风格，或称窗口格式
+		CW_USEDEFAULT,//初始化x坐标
+		CW_USEDEFAULT,//初始化y坐标
+		CW_USEDEFAULT,//初始x方向尺寸
+		CW_USEDEFAULT,//初始y方向尺寸
+		NULL,//父窗口句柄
+		NULL,//窗口菜单句柄
+		hinstance,//程序实例句柄
+		NULL);//创建参数
+	//MessageBox(NULL,TEXT("haha"), TEXT("1234"), 0);
+	ShowWindow(hwnd, icmdshow);//在屏幕中显示窗口
+	UpdateWindow(hwnd);//指示窗口对其自身重绘
+	/*while (GetMessage(&msg, NULL, 0, 0)) {//从消息队列获取消息
+		TranslateMessage(&msg);//翻译一些键盘消息
+		DispatchMessage(&msg);//将消息发送给窗口过程
+	}*/
+	while (TRUE) {
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+			if (msg.message == WM_QUIT)
+				break;
+			TranslateMessage(&msg);//翻译一些键盘消息
+			DispatchMessage(&msg);//将消息发送给窗口过程
+		}
+		else
+			DrawRectangle(hwnd);
+	}
+	return msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	HDC				hdc;//设备环境句柄
+	PAINTSTRUCT		ps;//绘制结构
+	TEXTMETRIC		tm;
+	switch (message)
+	{
+	case WM_SIZE:
+		cxClient = LOWORD(lParam);
+		cyClient = HIWORD(lParam);
+		return 0;
+	case WM_DESTROY:
+		PostQuitMessage(0);//将退出消息插入窗口队列
+		return 0;
+	}
+	return DefWindowProc(hwnd, message, wParam, lParam);//执行默认的消息处理
+}
+
+void DrawRectangle(HWND hwnd)
+{
+	HBRUSH	hBrush;
+	HDC		hdc;
+	RECT	rect;
+
+	if (cxClient == 0 || cyClient == 0)
+		return;
+	SetRect(&rect, rand() % cxClient, rand() % cyClient,
+		rand() % cxClient, rand() % cyClient);
+
+	hBrush = CreateSolidBrush(RGB(rand() % 256, rand() % 256, rand() % 256));
+
+	hdc = GetDC(hwnd);
+
+	FillRect(hdc, &rect, hBrush);//画刷填充矩形
+	ReleaseDC(hwnd, hdc);
+	DeleteObject(hBrush);
+}
