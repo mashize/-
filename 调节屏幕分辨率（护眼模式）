@@ -1,0 +1,77 @@
+bool SetBrightness(HDC hDC, int wR, int wG, int wB)
+{
+	bool bRet = FALSE;
+	HDC hGammDC = hDC ? hDC : ::GetDC(NULL);
+	//hDC DC句柄，如果为NULL时使用整个屏幕
+
+#pragma pack(push, 8)
+	typedef struct tagD3dGammaramp
+	{
+		WORD                red[256];
+		WORD                green[256];
+		WORD                blue[256];
+	}D3DGAMMARAMP, *LP_D3DGAMMARAMP;
+#pragma pack(pop)
+
+	D3DGAMMARAMP mGamRamp;
+	memset(&mGamRamp, 0, sizeof(mGamRamp));
+
+	for (int iIndex = 0; iIndex < 256; ++iIndex)
+	{
+		mGamRamp.red[iIndex] = min(65535, iIndex * (wR + 128));
+		mGamRamp.green[iIndex] = min(65535, iIndex * (wG + 128));
+		mGamRamp.blue[iIndex] = min(65535, iIndex * (wB + 128));
+	}
+
+	LPVOID lpRamp = &mGamRamp;
+	//void* lpRamp = &mGamRamp;
+
+	bRet = SetDeviceGammaRamp(hGammDC, lpRamp);
+
+	if (hDC == NULL && hGammDC)
+	{
+		::ReleaseDC(NULL, hGammDC);
+	}
+
+	return bRet;
+}
+
+const char* CNEImple::OpenEyeCareModel(Json::Value&)
+{
+	HDC				hdc;
+	PAINTSTRUCT		ps;
+	time_t			cur;
+	struct tm		tms;
+	bool			ret = false;
+
+	cur = time(NULL);
+	localtime_s(&tms, &cur);
+	HWND hwnd = ::GetForegroundWindow();
+	hdc = BeginPaint(hwnd, &ps);
+	if (tms.tm_hour >= 20 || tms.tm_hour < 7) {
+		ret=SetBrightness(hdc, 128, 128, 0);
+	}
+	EndPaint(hwnd, &ps);
+
+	Json::Value data;
+	return ret ? SucceededCode(data) : FailedCode();
+}
+
+const char* CNEImple::CloseEyeCareModel(Json::Value&)
+{
+	HDC				hdc;
+	PAINTSTRUCT		ps;
+	time_t			cur;
+	struct tm		tms;
+	bool			ret = false;
+
+	cur = time(NULL);
+	localtime_s(&tms, &cur);
+	HWND hwnd = ::GetForegroundWindow();
+	hdc = BeginPaint(hwnd, &ps);
+	ret=SetBrightness(hdc, 128, 128, 128);
+	EndPaint(hwnd, &ps);
+
+	Json::Value data;
+	return ret ? SucceededCode(data) : FailedCode();
+}
